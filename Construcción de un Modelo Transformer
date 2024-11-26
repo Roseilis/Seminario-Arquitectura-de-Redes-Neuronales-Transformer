@@ -1,0 +1,141 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super(MultiHeadAttention, self).__init__()
+        self.num_heads = num_heads
+        self.d_model = d_model
+
+        assert d_model % num_heads == 0
+
+        self.depth = d_model // num_heads
+        self.wq = nn.Linear(d_model, d_model)
+        self.wk = nn.Linear(d_model, d_model)
+        self.wv = nn.Linear(d_model, d_model)
+
+        self.dense = nn.Linear(d_model, d_model)
+
+    def split_heads(self, x, batch_size):
+        x = x.view(batch_size, -1, self.num_heads, self.depth)
+        return x.transpose(1, 2)
+
+    def forward(self, v, k, q, mask):
+        batch_size = q.size(0)
+
+        q = self.wq(q)
+        k = self.wk(k)
+        v = self.wv(v)
+
+        q = self.split_heads(q, batch_size)
+        k = self.split_heads(k, batch_size)
+        v = self.split_heads(v, batch_size)
+
+        scores = torch.matmul(q, k.transpose(-2, -1)) / torch.sqrt(torch.FloatTensor([self.depth]))
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, -1e9)
+        attention_weights = nn.Softmax(dim=-1)(scores)
+        output = torch.matmul(attention_weights, v)
+
+        output = output.transpose(1, 2).contiguous().view(batch_size, -1, self.d_model)
+        output = self.dense(output)
+        return output
+
+class FeedForwardNetwork(nn.Module):
+    def __init__(self, d_model, d_ff, dropout=0.1):
+        super(FeedForwardNetwork, self).__init__()
+        self.linear1 = nn.Linear(d_model, d_ff)
+        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(d_ff, d_model)
+
+    def forward(self, x):
+        x = self.linear1(x)
+        x = nn.ReLU()(x)
+        x = self.dropout(x)
+        x = self.linear2(x)
+        return x
+
+class Transformer(nn.Module):
+    def __init__(self, input_dim, d_model, num_heads, d_ff, num_layers):
+        super(Transformer, self).__init__()
+        self.encoder = nn.ModuleList([MultiHeadAttention(d_model, num_heads) for _ in range(num_layers)])
+        self.ffn = nn.ModuleList([FeedForwardNetwork(d_model, d_ff) for _ in range(num_layers)])
+        self.input_linear = nn.Linear(input_dim, d_model)
+
+    def forward(self, x, mask):
+        x = self.input_linear(x)
+        for i in range(len(self.encoder)):
+            x = self.encoder[i](x, x, x, mask)
+            x = self.ffn[i](x)
+        return ximport torch
+import torch.nn as nn
+import torch.optim as optim
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super(MultiHeadAttention, self).__init__()
+        self.num_heads = num_heads
+        self.d_model = d_model
+
+        assert d_model % num_heads == 0
+
+        self.depth = d_model // num_heads
+        self.wq = nn.Linear(d_model, d_model)
+        self.wk = nn.Linear(d_model, d_model)
+        self.wv = nn.Linear(d_model, d_model)
+
+        self.dense = nn.Linear(d_model, d_model)
+
+    def split_heads(self, x, batch_size):
+        x = x.view(batch_size, -1, self.num_heads, self.depth)
+        return x.transpose(1, 2)
+
+    def forward(self, v, k, q, mask):
+        batch_size = q.size(0)
+
+        q = self.wq(q)
+        k = self.wk(k)
+        v = self.wv(v)
+
+        q = self.split_heads(q, batch_size)
+        k = self.split_heads(k, batch_size)
+        v = self.split_heads(v, batch_size)
+
+        scores = torch.matmul(q, k.transpose(-2, -1)) / torch.sqrt(torch.FloatTensor([self.depth]))
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, -1e9)
+        attention_weights = nn.Softmax(dim=-1)(scores)
+        output = torch.matmul(attention_weights, v)
+
+        output = output.transpose(1, 2).contiguous().view(batch_size, -1, self.d_model)
+        output = self.dense(output)
+        return output
+
+class FeedForwardNetwork(nn.Module):
+    def __init__(self, d_model, d_ff, dropout=0.1):
+        super(FeedForwardNetwork, self).__init__()
+        self.linear1 = nn.Linear(d_model, d_ff)
+        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(d_ff, d_model)
+
+    def forward(self, x):
+        x = self.linear1(x)
+        x = nn.ReLU()(x)
+        x = self.dropout(x)
+        x = self.linear2(x)
+        return x
+
+class Transformer(nn.Module):
+    def __init__(self, input_dim, d_model, num_heads, d_ff, num_layers):
+        super(Transformer, self).__init__()
+        self.encoder = nn.ModuleList([MultiHeadAttention(d_model, num_heads) for _ in range(num_layers)])
+        self.ffn = nn.ModuleList([FeedForwardNetwork(d_model, d_ff) for _ in range(num_layers)])
+        self.input_linear = nn.Linear(input_dim, d_model)
+
+    def forward(self, x, mask):
+        x = self.input_linear(x)
+        for i in range(len(self.encoder)):
+            x = self.encoder[i](x, x, x, mask)
+            x = self.ffn[i](x)
+        return x
